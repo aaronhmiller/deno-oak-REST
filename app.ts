@@ -41,6 +41,52 @@ router.post("/items", async (ctx) => {
   ctx.response.body = { id: result.rows[0][0] };
 });
 
+// PUT (update) item
+router.put("/items/:id", async (ctx) => {
+  const id = ctx.params.id;
+  const { name, description } = await ctx.request.body().value;
+  
+  // First, check if the item exists
+  const checkResult = await client.queryArray("SELECT * FROM items WHERE id = $1", [id]);
+  if (checkResult.rows.length === 0) {
+    ctx.response.status = 404;
+    ctx.response.body = { message: "Item not found" };
+    return;
+  }
+
+  // If the item exists, update it
+  const result = await client.queryArray(
+    "UPDATE items SET name = $1, description = $2 WHERE id = $3 RETURNING *",
+    [name, description, id]
+  );
+  
+  ctx.response.body = {
+    message: "Item updated successfully",
+    item: result.rows[0]
+  };
+});
+
+// DELETE item
+router.delete("/items/:id", async (ctx) => {
+  const id = ctx.params.id;
+  
+  // First, check if the item exists
+  const checkResult = await client.queryArray("SELECT * FROM items WHERE id = $1", [id]);
+  if (checkResult.rows.length === 0) {
+    ctx.response.status = 404;
+    ctx.response.body = { message: "Item not found" };
+    return;
+  }
+
+  // If the item exists, delete it
+  await client.queryArray("DELETE FROM items WHERE id = $1", [id]);
+  
+  ctx.response.status = 200;
+  ctx.response.body = {
+    message: "Item deleted successfully"
+  };
+});
+
 const app = new Application();
 app.use(router.routes());
 app.use(router.allowedMethods());
